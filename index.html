@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AES Multi-Mode Visualizer v1.2</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 240 5.9% 10%;
+  --radius: 0.5rem;
+  
+  /* Compatibility mapping */
+  --bg: hsl(var(--background));
+  --surface: hsl(var(--card));
+  --accent-color: #10b981;
+  --text: hsl(var(--foreground));
+  --text-muted: hsl(var(--muted-foreground));
+  --success: #10b981;
+  --error: #ef4444;
+  
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Satoshi', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: #f1f5f9; /* Slightly darker grey for better contrast with white cards */
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Shadcn Component System ── */
+
+.card {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid #e2e8f0; /* More defined border */
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+.card-header { display: flex; flex-direction: column; gap: 0.375rem; padding: 1.5rem; border-bottom: 1px solid #f1f5f9; margin-bottom: 1.5rem; }
+.card-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; line-height: 1; letter-spacing: -0.025em; }
+.card-description { font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
+.card-content { padding: 1.5rem; padding-top: 0; }
+.card-footer { display: flex; align-items: center; padding: 1.5rem; padding-top: 0; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 0.875rem;
+  font-weight: 600;
+  height: 2.25rem;
+  padding: 0 1.25rem; /* Slightly wider */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: 1px solid transparent;
+  gap: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.btn:hover { transform: translateY(-1px); opacity: 0.9; }
+.btn:active { transform: translateY(0); }
+
+.btn-primary { background-color: #09090b; color: #ffffff; margin-top: 0.5rem; margin-bottom: 1rem; }
+
+.btn-destructive { background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); }
+
+.btn-outline { border-color: #e2e8f0; background-color: transparent; color: #0f172a; }
+.btn-outline:hover { background-color: #f8fafc; }
+
+.btn-secondary { background-color: #f1f5f9; color: #0f172a; }
+
+.btn-ghost { background-color: transparent; color: #64748b; font-weight: 500; border: none; box-shadow: none; }
+.btn-ghost:hover { background-color: #f1f5f9; color: #0f172a; }
+
+.input-style {
+  display: flex;
+  height: 2.5rem;
+  width: 100%;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #0f172a;
+  transition: all 0.2s;
+}
+.input-style:focus { outline: none; border-color: #09090b; box-shadow: 0 0 0 1px #09090b; }
+textarea.input-style { min-height: 120px; font-family: var(--font-mono); }
+
+/* ── Tooltips & Help Icons ── */
+.label-with-info { display: flex; align-items: center; gap: 0.35rem; position: relative; }
+.info-icon { 
+  display: inline-flex; color: #a1a1aa; cursor: help; transition: color 0.2s; 
+  padding: 2px;
+}
+.info-icon:hover { color: #09090b; }
+.info-icon svg { width: 14px; height: 14px; }
+
+[data-tooltip] { position: relative; }
+[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background: #09090b;
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: normal;
+  width: 180px;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+}
+[data-tooltip]:hover::before { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+[data-tooltip]::after {
+  content: "";
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: #09090b transparent transparent transparent;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+  pointer-events: none;
+  z-index: 100;
+}
+[data-tooltip]:hover::after { opacity: 1; visibility: visible; }
+
+.tabs-list {
+  display: inline-flex;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  background-color: #f1f5f9;
+  padding: 0.25rem;
+  color: #64748b;
+  width: 100%;
+  margin-bottom: 2rem;
+  border: 1px solid #e2e8f0;
+}
+.tab-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: inherit;
+  flex: 1;
+  gap: 0.5rem;
+}
+.tab-trigger svg { width: 15px; height: 15px; }
+.tab-trigger.active { 
+  background-color: #ffffff; 
+  color: #000; 
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+  border-bottom: 2px solid #000;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.tab-content:not(.active) { display: none; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  padding: 0.125rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+header {
+  border-bottom: 1px solid hsl(var(--border));
+  background-color: #ffffff;
+  padding: 0.75rem 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+.header-left { display: flex; align-items: center; gap: 0.75rem; }
+.logo-container {
+  width: 28px;
+  height: 28px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-container svg { width: 14px; height: 14px; }
+
+header h1 { font-family: var(--font-display); font-size: 0.95rem; font-weight: 600; color: #111; }
+header .metadata { font-size: 0.8rem; color: hsl(var(--muted-foreground)); font-weight: 500; }
+
+.main-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 2rem 2.5rem;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 2rem;
+}
+
+.sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.field-group { margin-bottom: 1.5rem; }
+.field-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #3f3f46;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  line-height: 1.2;
+}
+.field-label span.desc { font-size: 0.7rem; color: hsl(var(--muted-foreground)); font-weight: 400; text-transform: none; }
+
+.key-input-container { position: relative; display: flex; align-items: center; }
+.key-input-container .input-style { flex: 1; padding-right: 3rem; }
+.char-counter {
+  position: absolute;
+  right: 0.75rem;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  z-index: 10;
+  pointer-events: none;
+}
+.char-counter.valid { color: #059669; }
+.char-counter.invalid { color: #dc2626; }
+
+.toggle-group { display: flex; background: #f1f5f9; padding: 0.25rem; border-radius: var(--radius); gap: 0.25rem; border: 1px solid #e2e8f0; }
+.toggle-item { 
+  flex: 1; 
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none; 
+  background: transparent; 
+  color: #64748b; 
+  font-size: 0.8rem; 
+  font-weight: 500; 
+  cursor: pointer; 
+  border-radius: calc(var(--radius) - 2px); 
+  transition: all 0.2s; 
+}
+.toggle-item.active { background: #ffffff; color: #000; font-weight: 700; border: 1px solid #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+.drop-zone {
+  border: 1px dashed hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  text-align: center;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.drop-zone:hover { border-color: #000; background: #f9fafb; outline: 1px solid #000; }
+.drop-zone svg { width: 22px; height: 22px; color: #a1a1aa; margin: 0; }
+.drop-zone div { font-size: 0.85rem; }
+
+/* ── Tooltips & Help Icons ── */
+.label-with-info { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.5rem; min-height: 1rem; }
+.label-with-info .field-label { margin-bottom: 0; }
+.info-icon { 
+  display: inline-flex; 
+  color: #a1a1aa; 
+  cursor: help; 
+  transition: color 0.2s; 
+  padding: 2px;
+  border-radius: 4px;
+}
+.info-icon:hover { color: #09090b; background: #f1f5f9; }
+.info-icon svg { width: 14px; height: 14px; display: block; }
+
+.output-section { border-top: 1px solid hsl(var(--border)); margin-top: 2rem; padding-top: 1.5rem; }
+.output-card {
+  background-color: #f9fafb;
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  position: relative;
+  border: 1px solid hsl(var(--border));
+  min-height: 3.25rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.output-card pre { 
+  font-size: 0.8rem; 
+  color: #000; 
+  font-family: var(--font-mono); 
+  white-space: pre-wrap; 
+  word-break: break-all; 
+  flex: 1;
+  padding-right: 2.75rem; /* Space for copy button */
+  margin: 0;
+  line-height: 1.5;
+}
+.btn-copy { 
+  position: absolute; 
+  top: 50%;
+  right: 0.5rem; 
+  transform: translateY(-50%);
+  width: 2.25rem; 
+  height: 2.25rem; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  background-color: #ffffff; 
+  border: 1px solid #e2e8f0; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  color: #64748b; 
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+}
+.btn-copy:hover { 
+  background-color: #f8fafc; 
+  color: #0f172a; 
+  border-color: #cbd5e1; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.btn-copy:active { transform: translateY(-50%) scale(0.95); }
+.btn-copy svg { width: 16px; height: 16px; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.25rem; }
+.stat-item { background: #ffffff; border: 1px solid hsl(var(--border)); border-radius: var(--radius); padding: 0.75rem; }
+.stat-label { font-size: 0.6rem; color: #71717a; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem; }
+.stat-value { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; color: #09090b; }
+
+.viz-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 320px; text-align: center; gap: 1.25rem; color: #71717a; }
+.viz-empty svg { width: 42px; height: 42px; }
+
+.viz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px dotted #e4e4e7; }
+.step-info .label { font-size: 1.25rem; font-weight: 700; color: #000; display: block; }
+.step-info .counter { font-size: 0.8rem; color: #71717a; font-weight: 500; margin-top: 0.25rem; }
+
+.matrix-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 300px; margin: 2rem auto; }
+.matrix-cell { aspect-ratio: 1; border: 1px solid #e4e4e7; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+
+.playback-controls { display: flex; justify-content: center; gap: 0.65rem; margin-top: 2rem; }
+.control-btn { width: 2.25rem; height: 2.25rem; display: flex; align-items: center; justify-content: center; background-color: #fff; border: 1px solid #e4e4e7; border-radius: 8px; cursor: pointer; color: #000; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.control-btn:hover { border-color: #000; background: #fafafa; }
+.control-btn svg { width: 14px; height: 14px; }
+
+.playback-timeline { display: flex; gap: 0.25rem; justify-content: center; padding: 1.5rem 0; overflow-x: auto; }
+.step-dot { width: 6px; height: 6px; background: #e4e4e7; border-radius: 50%; cursor: pointer; transition: all 0.2s; }
+.step-dot.active { background: #000; transform: scale(1.5); }
+.step-dot.past { background: #3f3f46; }
+
+.toast-premium { 
+  position: fixed; bottom: 2rem; right: 2rem; background-color: #ffffff; border: 1px solid #000; color: #000; padding: 0.75rem 1.25rem; border-radius: 8px; display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); z-index: 1000; 
+}
+
+.hidden { display: none !important; }
+
+@media (max-width: 1100px) { .main-container { grid-template-columns: 1fr; } .sidebar { max-width: 100%; } }
+</style>
+
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo-container">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <h1>AES Multi-Mode Visualizer <span class="badge badge-secondary" style="margin-left: 0.5rem">v1.2</span></h1>
+  </div>
+  <div class="metadata">Nhóm 5 · Mã hóa dữ liệu bằng thuật toán AES</div>
+</header>
+
+<main class="main-container">
+  <!-- ── Left: Configuration Sidebar ── -->
+  <aside class="sidebar">
+    <div class="card">
+      <div class="card-content" style="padding-top: 1.5rem;">
+        <div class="tabs-list">
+          <button class="tab-trigger active" onclick="switchTab('encrypt')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            Mã hoá
+          </button>
+          <button class="tab-trigger" onclick="switchTab('decrypt')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+            Giải mã
+          </button>
+          <button class="tab-trigger" onclick="switchTab('nist')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.3 21.041a9 9 0 1 1 3.553-3.64l1.247 1.247c.39.39.39 1.023 0 1.413l-1.387 1.387c-.39.39-1.023.39-1.413 0z"></path><path d="M9 14h6v2H9z"></path></svg>
+            NIST
+          </button>
+        </div>
+      </div>
+
+        <div id="tab-encrypt" class="tab-content active" style="padding: 0 1.5rem 1.5rem;">
+          <div class="toggle-group" style="margin-bottom: 1.5rem;">
+            <button class="toggle-item active" id="enc-mode-text" onclick="switchMode('enc', 'text')">Văn bản</button>
+            <button class="toggle-item" id="enc-mode-file" onclick="switchMode('enc', 'file')">Tệp tin</button>
+          </div>
+  
+          <div id="enc-input-text">
+            <div class="field-group">
+              <div class="label-with-info">
+                <label class="field-label">Plaintext</label>
+                <span class="info-icon" data-tooltip="Dữ liệu gốc chưa mã hoá, là thông tin bạn muốn bảo mật.">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </span>
+              </div>
+              <textarea id="enc-text" class="input-style" placeholder="Nhập văn bản cần mã hoá..."></textarea>
+            </div>
+          </div>
+  
+          <div id="enc-input-file" class="hidden">
+            <div class="field-group">
+              <label class="field-label">Chọn tệp</label>
+              <div class="drop-zone" onclick="document.getElementById('enc-file').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                <div id="enc-file-name" class="text-dim">Nhấp để chọn tệp</div>
+                <input type="file" id="enc-file" class="hidden" onchange="fileSelected('enc')">
+              </div>
+            </div>
+          </div>
+  
+          <div class="field-group">
+            <div class="label-with-info">
+              <label class="field-label">AES Mode <span class="desc">(bits)</span></label>
+              <span class="info-icon" data-tooltip="Độ dài khóa mã hoá tính bằng bit. Khóa 256 bits là an toàn nhất hiện nay.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              </span>
+            </div>
+            <div class="toggle-group" style="margin-bottom:1rem">
+              <button class="toggle-item active" id="enc-bits-128" onclick="switchBits('enc', 128)">128</button>
+              <button class="toggle-item" id="enc-bits-192" onclick="switchBits('enc', 192)">192</button>
+              <button class="toggle-item" id="enc-bits-256" onclick="switchBits('enc', 256)">256</button>
+            </div>
+            <div class="label-with-info">
+              <label class="field-label">Secret Key <span id="enc-key-label" class="desc">(16 chars)</span></label>
+              <span class="info-icon" data-tooltip="Chìa khóa dùng để mã hoá và giải mã. Bạn phải giữ bí mật chìa khóa này.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              </span>
+            </div>
+            <div class="key-input-container">
+              <input type="text" id="enc-key" class="input-style" maxlength="16" placeholder="mysecretkey12345" oninput="updateCounter('enc-key','enc-ctr')">
+              <span class="char-counter invalid" id="enc-ctr">0/16</span>
+            </div>
+          </div>
+  
+          <button class="btn btn-primary" style="width: 100%;" onclick="doEncrypt()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+            Bắt đầu mã hoá
+          </button>
+
+          <div id="enc-output" class="output-section hidden">
+            <div class="card" style="border-color:var(--success); background:rgba(16, 185, 129, 0.04); border-width:1.5px;">
+              <div class="card-header" style="border-bottom: 1px solid rgba(16, 185, 129, 0.1); padding: 1rem 1.25rem;">
+                <div class="card-title" style="color:var(--success); font-size:0.95rem; display:flex; align-items:center; gap:0.65rem; font-weight:700">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  Mã hoá thành công!
+                </div>
+              </div>
+              <div class="card-content" style="padding: 1.25rem;">
+                <div class="label-with-info">
+                  <div class="field-label" style="color:var(--success); opacity:0.8">Initialization Vector (IV)</div>
+                  <span class="info-icon" data-tooltip="Giá trị ngẫu nhiên dùng để khởi tạo quá trình mã hoá, giúp tăng tính bảo mật.">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  </span>
+                </div>
+                <div class="output-card" style="background:#fff; margin-bottom:1.25rem">
+                  <button class="btn-copy" onclick="copyText('enc-iv-val')" title="Copy to clipboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <pre id="enc-iv-val" style="color:var(--success); font-weight:500"></pre>
+                </div>
+                
+                <div class="label-with-info">
+                  <div class="field-label" style="color:var(--success); opacity:0.8">Ciphertext <span class="desc">(hex)</span></div>
+                  <span class="info-icon" data-tooltip="Dữ liệu sau khi đã được mã hoá, không thể đọc trực tiếp.">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  </span>
+                </div>
+                <div class="output-card" style="background:#fff">
+                  <button class="btn-copy" onclick="copyText('enc-hex-val')" title="Copy to clipboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <pre id="enc-hex-val" style="color:var(--success); font-weight:500"></pre>
+                </div>
+      
+                <div class="stats-grid" id="enc-stats" style="margin-top:1.5rem"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+        <div id="tab-decrypt" class="tab-content" style="padding: 0 1.5rem 1.5rem;">
+          <div class="toggle-group" style="margin-bottom: 1.5rem;">
+            <button class="toggle-item active" id="dec-mode-text" onclick="switchMode('dec', 'text')">Văn bản</button>
+            <button class="toggle-item" id="dec-mode-file" onclick="switchMode('dec', 'file')">Tệp tin</button>
+          </div>
+  
+          <div id="dec-input-text">
+            <div class="field-group">
+              <div class="label-with-info">
+                <label class="field-label">IV <span class="desc">(hex, 32 chars)</span></label>
+                <span class="info-icon" data-tooltip="Giá trị ngẫu nhiên dùng để đảm bảo kết quả mã hoá luôn độc nhất.">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </span>
+              </div>
+              <input type="text" id="dec-iv" class="input-style" placeholder="Dán IV hex vào đây...">
+            </div>
+            <div class="field-group">
+              <div class="label-with-info">
+                <label class="field-label">Ciphertext <span class="desc">(hex)</span></label>
+                <span class="info-icon" data-tooltip="Dữ liệu đã mã hoá dưới dạng Hex, cần giải mã để đọc.">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </span>
+              </div>
+              <textarea id="dec-hex" class="input-style" placeholder="Dán ciphertext hex vào đây..."></textarea>
+            </div>
+          </div>
+  
+          <div id="dec-input-file" class="hidden">
+            <div class="field-group">
+              <label class="field-label">Chọn tệp .enc</label>
+              <div class="drop-zone" onclick="document.getElementById('dec-file').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <div id="dec-file-name" class="text-dim">Chọn tệp đã mã hoá</div>
+                <input type="file" id="dec-file" class="hidden" onchange="fileSelected('dec')">
+              </div>
+            </div>
+          </div>
+  
+          <div class="field-group">
+            <div class="label-with-info">
+              <label class="field-label">AES Mode <span class="desc">(bits)</span></label>
+              <span class="info-icon" data-tooltip="Độ dài khóa mã hoá tính bằng bit. Khóa 256 bits là an toàn nhất hiện nay.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              </span>
+            </div>
+            <div class="toggle-group" style="margin-bottom:1rem">
+              <button class="toggle-item active" id="dec-bits-128" onclick="switchBits('dec', 128)">128</button>
+              <button class="toggle-item" id="dec-bits-192" onclick="switchBits('dec', 192)">192</button>
+              <button class="toggle-item" id="dec-bits-256" onclick="switchBits('dec', 256)">256</button>
+            </div>
+            <div class="label-with-info">
+              <label class="field-label">Secret Key <span id="dec-key-label" class="desc">(16 chars)</span></label>
+              <span class="info-icon" data-tooltip="Chìa khóa dùng để mã hoá và giải mã. Bạn phải giữ bí mật chìa khóa này.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              </span>
+            </div>
+            <div class="key-input-container">
+              <input type="text" id="dec-key" class="input-style" maxlength="16" placeholder="mysecretkey12345" oninput="updateCounter('dec-key','dec-ctr')">
+              <span class="char-counter invalid" id="dec-ctr">0/16</span>
+            </div>
+          </div>
+  
+          <button class="btn btn-primary" style="width: 100%;" onclick="doDecrypt()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+            Tiến hành giải mã
+          </button>
+
+        <div id="dec-output" class="output-section hidden">
+          <div class="card" style="border-color:var(--success); background:rgba(16, 185, 129, 0.04); border-width:1.5px;">
+            <div class="card-header" style="border-bottom: 1px solid rgba(16, 185, 129, 0.1); padding: 1rem 1.25rem;">
+              <div class="card-title" style="color:var(--success); font-size:0.95rem; display:flex; align-items:center; gap:0.65rem; font-weight:700">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                Giải mã thành công!
+              </div>
+            </div>
+            <div class="card-content" style="padding: 1.25rem;">
+              <div class="label-with-info">
+                <div class="field-label" style="color:var(--success); opacity:0.8">Plaintext</div>
+                <span class="info-icon" data-tooltip="Kết quả giải mã thành công, đây là nội dung văn bản gốc.">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </span>
+              </div>
+              <div class="output-card" style="background:#fff">
+                <button class="btn-copy" onclick="copyText('dec-text-val')" title="Copy to clipboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+                <pre id="dec-text-val" style="color:var(--success); font-weight:500"></pre>
+              </div>
+              <div class="stats-grid" id="dec-stats" style="margin-top:1.5rem"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+        <div id="tab-nist" class="tab-content" style="padding: 0 1.5rem 1.5rem;">
+          <div class="field-group">
+            <div class="label-with-info">
+              <label class="field-label">NIST FIPS-197 Validation</label>
+              <span class="info-icon" data-tooltip="Tiêu chuẩn kiểm thử từ chính phủ Mỹ để xác minh thuật toán chạy chính xác 100%.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              </span>
+            </div>
+            <p style="color:hsl(var(--muted-foreground)); font-size:0.875rem; margin-bottom:1.25rem">
+              So sánh kết quả thực thi với Test Vector chính thức của NIST để đảm bảo tính chính xác.
+            </p>
+            <div class="field-group" style="opacity:0.7">
+              <div class="label-with-info">
+                <label class="field-label">Standard Key</label>
+                <span class="info-icon" data-tooltip="Khóa mẫu cố định dùng cho bài kiểm tra NIST.">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </span>
+              </div>
+              <input type="text" class="input-style" value="000102030405060708090a0b0c0d0e0f" readonly>
+            </div>
+          </div>
+          
+          <button class="btn btn-primary" style="width: 100%;" onclick="doNIST()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><path d="M16.3 21.041a9 9 0 1 1 3.553-3.64l1.247 1.247c.39.39.39 1.023 0 1.413l-1.387 1.387c-.39.39-1.023.39-1.413 0z"></path><path d="M9 14h6v2H9z"></path></svg>
+            Chạy NIST Validation
+          </button>
+
+        <div id="nist-result"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Right: Visualization Canvas ── -->
+  <section class="visualization-area">
+    <div style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: #09090b; letter-spacing: -0.025em;">Visualizer Workspace</h2>
+        <p style="font-size: 0.875rem; color: #71717a;">Phân tích các bước chuyển đổi dữ liệu của thực thể AES</p>
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <span class="badge" style="background:#f4f4f5; border-color:#e4e4e7">Live Engine</span>
+        <span id="active-bits-badge" class="badge" style="background:#09090b; color:#fff; border:none;">AES-128</span>
+      </div>
+    </div>
+    
+    <div class="card" style="height: auto; min-height: 500px; display: flex; flex-direction: column;">
+      <div id="viz-empty" class="viz-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline><polyline points="7.5 19.79 7.5 14.63 3 12"></polyline><polyline points="21 12 16.5 14.63 16.5 19.79"></polyline><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+        <div class="card-description">Thực hiện một phép tính để bắt đầu visualize các bước biến đổi của State Matrix.</div>
+      </div>
+
+      <div id="viz-content" class="viz-container hidden card-content" style="padding-top: 1.5rem; flex: 1;">
+        <div class="viz-header">
+          <div class="step-info">
+            <span id="step-label" class="label">—</span>
+            <span id="step-counter" class="counter">Step 0 / 0</span>
+          </div>
+          <div class="speed-control">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <div class="toggle-group" style="width: 220px;">
+              <button id="speed-0.25" class="toggle-item" onclick="updateSpeed(0.25)">0.25x</button>
+              <button id="speed-0.5" class="toggle-item" onclick="updateSpeed(0.5)">0.5x</button>
+              <button id="speed-1" class="toggle-item active" onclick="updateSpeed(1)">1x</button>
+              <button id="speed-2" class="toggle-item" onclick="updateSpeed(2)">2x</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="matrix-grid" id="matrix-grid"></div>
+
+        <div class="playback-controls">
+          <button class="control-btn" onclick="goFirst()" title="Về đầu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg></button>
+          <button class="control-btn" onclick="goPrev()" title="Lùi lại"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg></button>
+          <button class="control-btn" id="play-btn" onclick="togglePlay()" title="Phát/Dừng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></button>
+          <button class="control-btn" onclick="goNext()" title="Tiếp theo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg></button>
+          <button class="control-btn" onclick="goLast()" title="Đến cuối"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg></button>
+        </div>
+
+        <div class="playback-timeline" id="timeline"></div>
+
+        <div style="display:flex; gap:1.5rem; justify-content:center; font-size:0.7rem; color:var(--text-dim); margin-top:2rem; font-family:var(--font-mono)">
+          <div style="display:flex; align-items:center; gap:0.5rem;"><div style="width:8px; height:8px; background:#1a3a5c; border-radius:2px;"></div> 0x00</div>
+          <div style="display:flex; align-items:center; gap:0.5rem;"><div style="width:8px; height:8px; background:#00e5ff; border-radius:2px;"></div> 0xFF</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ── State ──
+const S = {
+  tab: 'encrypt',
+  encMode: 'text',
+  decMode: 'text',
+  encBits: 128,
+  decBits: 128,
+  steps: [],
+  cur: 0,
+  playing: false,
+  timer: null,
+  speed: 500,
+  prevMatrix: null,
+};
+
+// ── Mode switching ──
+function switchMode(tab, mode) {
+  S[tab + 'Mode'] = mode;
+  document.getElementById(`${tab}-mode-text`).classList.toggle('active', mode === 'text');
+  document.getElementById(`${tab}-mode-file`).classList.toggle('active', mode === 'file');
+  document.getElementById(`${tab}-input-text`).classList.toggle('hidden', mode === 'file');
+  document.getElementById(`${tab}-input-file`).classList.toggle('hidden', mode === 'text');
+}
+
+function switchBits(panel, bits) {
+  S[panel + 'Bits'] = bits;
+  const chars = bits / 8;
+  document.querySelectorAll(`[id^="${panel}-bits-"]`).forEach(el => el.classList.remove('active'));
+  document.getElementById(`${panel}-bits-${bits}`).classList.add('active');
+  
+  const keyInput = document.getElementById(`${panel}-key`);
+  keyInput.maxLength = chars;
+  const placeholders = { 128: 'mysecretkey12345', 192: 'mysecretkey123456789012', 256: 'mysecretkey12345678901234567890' };
+  keyInput.placeholder = placeholders[bits];
+  document.getElementById(`${panel}-key-label`).textContent = `(${chars} chars)`;
+  updateCounter(`${panel}-key`, `${panel}-ctr`);
+}
+
+function fileSelected(tab) {
+  const file = document.getElementById(`${tab}-file`).files[0];
+  if (file) {
+    document.getElementById(`${tab}-file-name`).innerHTML = `
+      <div class="filename">${file.name}</div>
+      <div style="font-size:.7rem; color:var(--text-dim)">${(file.size/1024).toFixed(1)} KB</div>
+    `;
+  }
+}
+
+// ── Tab switching ──
+function switchTab(t) {
+  S.tab = t;
+  document.querySelectorAll('.tab-trigger').forEach((el, i) => {
+    el.classList.toggle('active', ['encrypt', 'decrypt', 'nist'][i] === t);
+  });
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + t).classList.add('active');
+}
+
+// ── Key counter ──
+function updateCounter(inputId, counterId) {
+  const panel = inputId.split('-')[0];
+  const targetChars = S[panel + 'Bits'] / 8;
+  const len = document.getElementById(inputId).value.length;
+  const el = document.getElementById(counterId);
+  el.textContent = `${len}/${targetChars}`;
+  el.className = 'char-counter ' + (len === targetChars ? 'valid' : 'invalid');
+}
+
+// ── Color mapping ──
+function byteColor(hex) {
+  const v = parseInt(hex, 16);
+  const t = v / 255;
+  // Professional Green subtleness for light theme
+  const alpha = 0.03 + t * 0.12;
+  return `rgba(16, 185, 129, ${alpha})`;
+}
+function byteTextColor(hex) {
+  return '#09090b'; // Always dark text for high readability on light backgrounds
+}
+
+// ── Render matrix ──
+function renderMatrix(matrix, prevMatrix) {
+  const grid = document.getElementById('matrix-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const hex = matrix[r][c];
+      const cell = document.createElement('div');
+      cell.className = 'matrix-cell';
+      cell.textContent = hex.toUpperCase();
+      cell.style.background = byteColor(hex);
+      cell.style.color = byteTextColor(hex);
+      cell.style.borderColor = `rgba(16, 185, 129, ${0.1 + (parseInt(hex,16)/255)*0.2})`;
+      cell.title = `row ${r} col ${c}: 0x${hex.toUpperCase()}`;
+      if (prevMatrix && prevMatrix[r][c] !== hex) {
+        cell.style.borderWidth = '2px';
+        cell.style.borderColor = '#10b981';
+      }
+      grid.appendChild(cell);
+    }
+  }
+}
+
+// ── Render step ──
+function renderStep(idx) {
+  if (!S.steps.length) return;
+  idx = Math.max(0, Math.min(idx, S.steps.length - 1));
+  const step = S.steps[idx];
+  const prevMatrix = idx > 0 ? S.steps[idx-1].matrix : null;
+
+  document.getElementById('step-label').textContent = step.label;
+  document.getElementById('step-counter').textContent = `Step ${idx+1} / ${S.steps.length}`;
+  renderMatrix(step.matrix, prevMatrix);
+  updateTimeline(idx);
+  S.cur = idx;
+}
+
+// ── Timeline ──
+function buildTimeline() {
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  S.steps.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'step-dot';
+    d.title = S.steps[i].label;
+    d.onclick = () => renderStep(i);
+    tl.appendChild(d);
+  });
+}
+function updateTimeline(cur) {
+  document.querySelectorAll('.step-dot').forEach((d, i) => {
+    d.className = 'step-dot' + (i === cur ? ' active' : i < cur ? ' past' : '');
+  });
+}
+
+// ── Playback ──
+function togglePlay() {
+  S.playing = !S.playing;
+  const btn = document.getElementById('play-btn');
+  btn.innerHTML = S.playing 
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>' 
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+  
+  btn.classList.toggle('active', S.playing);
+  if (S.playing) {
+    if (S.cur >= S.steps.length - 1) renderStep(0);
+    S.timer = setInterval(() => {
+      if (S.cur >= S.steps.length - 1) {
+        stopPlay(); return;
+      }
+      renderStep(S.cur + 1);
+    }, S.speed);
+  } else {
+    stopPlay();
+  }
+}
+function stopPlay() {
+  clearInterval(S.timer);
+  S.playing = false;
+  const btn = document.getElementById('play-btn');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+  btn.classList.remove('active');
+}
+function goNext() { stopPlay(); renderStep(S.cur + 1); }
+function goPrev() { stopPlay(); renderStep(S.cur - 1); }
+function goFirst() { stopPlay(); renderStep(0); }
+function goLast() { stopPlay(); renderStep(S.steps.length - 1); }
+function updateSpeed(m) {
+  S.speed = 500 / m;
+  document.querySelectorAll('.speed-control .toggle-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('speed-' + m).classList.add('active');
+  if (S.playing) {
+    clearInterval(S.timer);
+    S.timer = setInterval(() => {
+      if (S.cur >= S.steps.length - 1) { stopPlay(); return; }
+      renderStep(S.cur+1);
+    }, S.speed);
+  }
+}
+
+// ── Show visualization ──
+function showViz(steps) {
+  S.steps = steps;
+  S.cur = 0;
+  S.playing = false;
+  document.getElementById('viz-empty').classList.add('hidden');
+  document.getElementById('viz-content').classList.remove('hidden');
+  buildTimeline();
+  renderStep(0);
+}
+
+// ── Stats ──
+function statsHTML(r) {
+  const iterLabel = r.iter > 1 ? `${r.iter.toLocaleString()} samples` : '1 run';
+  const stepsVal = r.steps ? r.steps.length : '41';
+  
+  return `
+    <div class="stat-item">
+      <span class="stat-value" style="color:var(--success)">${r.timeLabel || (r.timeNs + ' ns')}</span>
+      <span class="stat-label">Lat: ${iterLabel}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value">${stepsVal}</span>
+      <span class="stat-label">Transformation Steps</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value">${fmtBytes(r.inputSize)}</span>
+      <span class="stat-label">Input Size</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value">${fmtBytes(r.outputSize)}</span>
+      <span class="stat-label">Output Size</span>
+    </div>
+  `;
+}
+
+// ── Format hex ──
+function fmtHex(h) {
+  if (!h) return '';
+  const chunks = h.match(/.{1,2}/g) || [];
+  let result = '';
+  for(let i=0; i<chunks.length; i++) {
+    result += chunks[i] + ( (i+1)%16 === 0 ? '\n' : ' ' );
+  }
+  return result.trim();
+}
+
+function getStatsFromHeaders(resp) {
+  return {
+    timeLabel: resp.headers.get('X-AES-Time-Label') || '< 1 ns',
+    timeNs:    parseInt(resp.headers.get('X-AES-Time-Ns') || '0'),
+    iter:      parseInt(resp.headers.get('X-AES-Iter') || '1'),
+    inputSize: parseInt(resp.headers.get('X-AES-Input-Size') || '0'),
+    outputSize:parseInt(resp.headers.get('X-AES-Output-Size') || '0'),
+    iv:        resp.headers.get('X-AES-IV') || '',
+    cipherPreview: resp.headers.get('X-AES-Cipher-Preview') || '',
+    steps: null,
+  };
+}
+
+function fmtBytes(n) {
+  if (n === 0) return '0 B';
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  return (n/1024/1024).toFixed(2) + ' MB';
+}
+
+// ── API calls ──
+async function doEncrypt() {
+  const key = document.getElementById('enc-key').value;
+  const targetChars = S.encBits / 8;
+  if (key.length !== targetChars) { toast(`Key phải đúng ${targetChars} ký tự cho chế độ ${S.encBits}-bit!`, false); return; }
+
+  if (S.encMode === 'text') {
+    const text = document.getElementById('enc-text').value;
+    if (!text) { toast('Vui lòng nhập văn bản!', false); return; }
+    try {
+      const r = await api('/api/encrypt', { text, key });
+      if (!r.success) { toast(r.error, false); return; }
+      document.getElementById('enc-iv-val').textContent  = r.iv;
+      document.getElementById('enc-hex-val').textContent = fmtHex(r.resultHex);
+      document.getElementById('enc-stats').innerHTML = statsHTML(r);
+      document.getElementById('enc-output').classList.remove('hidden');
+      showViz(r.steps);
+      toast('Mã hoá thành công!', true);
+    } catch(e) { toast('Lỗi kết nối server', false); }
+  } else {
+    const file = document.getElementById('enc-file').files[0];
+    if (!file) { toast('Vui lòng chọn tệp!', false); return; }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('key', key);
+
+    try {
+      const resp = await fetch('/api/encrypt-file', { method: 'POST', body: formData });
+      if (!resp.ok) { toast(await resp.text(), false); return; }
+      
+      const blob = await resp.blob();
+      downloadBlob(blob, file.name + '.enc');
+      
+      const stats = getStatsFromHeaders(resp);
+      document.getElementById('enc-iv-val').textContent = stats.iv || '(xem file .enc)';
+      document.getElementById('enc-hex-val').textContent = stats.cipherPreview
+        ? fmtHex(stats.cipherPreview.slice(0, 128)) + (stats.cipherPreview.length > 128 ? '\n... (64 bytes preview)' : '')
+        : '[Binary Data - Download to view]';
+      document.getElementById('enc-stats').innerHTML = statsHTML(stats);
+      document.getElementById('enc-output').classList.remove('hidden');
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const bytes = new Uint8Array(reader.result.slice(0, 16));
+        const r = await api('/api/encrypt', { text: String.fromCharCode.apply(null, bytes), key });
+        showViz(r.steps);
+      };
+      reader.readAsArrayBuffer(file);
+      toast('Tệp đã được mã hoá và tải về!', true);
+    } catch(e) { toast('Lỗi xử lý tệp', false); }
+  }
+}
+
+async function doDecrypt() {
+  const key = document.getElementById('dec-key').value;
+  const targetChars = S.decBits / 8;
+  if (key.length !== targetChars) { toast(`Key phải đúng ${targetChars} ký tự cho chế độ ${S.decBits}-bit!`, false); return; }
+
+  if (S.decMode === 'text') {
+    const ivHex = document.getElementById('dec-iv').value.trim().replace(/\s/g,'');
+    const ciphertextHex = document.getElementById('dec-hex').value.trim().replace(/\s/g,'');
+    if (!ivHex || !ciphertextHex) { toast('Vui lòng điền đủ thông tin!', false); return; }
+    try {
+      const r = await api('/api/decrypt', { ivHex, ciphertextHex, key });
+      if (!r.success) { toast(r.error, false); return; }
+      document.getElementById('dec-text-val').textContent = r.resultText;
+      document.getElementById('dec-stats').innerHTML = statsHTML(r);
+      document.getElementById('dec-output').classList.remove('hidden');
+      showViz(r.steps);
+      toast('Giải mã thành công!', true);
+    } catch(e) { toast('Lỗi kết nối server', false); }
+  } else {
+    const file = document.getElementById('dec-file').files[0];
+    if (!file) { toast('Vui lòng chọn tệp!', false); return; }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('key', key);
+
+    try {
+      const resp = await fetch('/api/decrypt-file', { method: 'POST', body: formData });
+      if (!resp.ok) { toast(await resp.text(), false); return; }
+
+      const blob = await resp.blob();
+      const contentDisp = resp.headers.get('Content-Disposition');
+      let fileName = file.name.replace('.enc', '');
+      if (contentDisp && contentDisp.includes('filename=')) {
+        fileName = contentDisp.split('filename=')[1].replace(/"/g, '');
+      }
+      downloadBlob(blob, fileName);
+      
+      const stats = getStatsFromHeaders(resp);
+      document.getElementById('dec-text-val').textContent = `✓ Đã giải mã: ${fileName}`;
+      document.getElementById('dec-stats').innerHTML = statsHTML(stats);
+      document.getElementById('dec-output').classList.remove('hidden');
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const bytes = new Uint8Array(reader.result.slice(0, 32));
+        const ivHex = Array.from(bytes.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join('');
+        const cipherHex = Array.from(bytes.slice(16, 32)).map(b => b.toString(16).padStart(2, '0')).join('');
+        const r = await api('/api/decrypt', { ivHex, ciphertextHex: cipherHex, key });
+        showViz(r.steps);
+      };
+      reader.readAsArrayBuffer(file);
+      toast('Tệp đã được giải mã!', true);
+    } catch(e) { toast('Lỗi giải mã tệp', false); }
+  }
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function doNIST() {
+  try {
+    const r = await api('/api/nist', {});
+    const el = document.getElementById('nist-result');
+    if (r.passed) {
+      el.innerHTML = `
+        <div class="card" style="border-color:var(--success); background:rgba(16, 185, 129, 0.05); margin-top:1.5rem">
+          <div class="card-header">
+            <div class="card-title" style="color:var(--success); font-size:1rem; display:flex; align-items:center; gap:0.5rem">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              NIST Standard Passed
+            </div>
+          </div>
+          <div class="card-content">
+            <div class="field-group"><label class="field-label">Result Hex</label><code style="color:var(--success); font-size:0.8rem; word-break:break-all">${r.resultHex}</code></div>
+            <div class="field-group"><label class="field-label">Expected Hex</label><code style="font-size:0.8rem; word-break:break-all">${r.expectedHex}</code></div>
+          </div>
+        </div>`;
+    } else {
+      el.innerHTML = `
+        <div class="card" style="border-color:var(--error); background:rgba(239, 68, 68, 0.05); margin-top:1.5rem">
+          <div class="card-header"><div class="card-title" style="color:var(--error); font-size:1rem">NIST Validation Failed</div></div>
+          <div class="card-content">
+            <div class="field-group"><label class="field-label">Got Result</label><code style="font-size:0.8rem; word-break:break-all">${r.resultHex}</code></div>
+          </div>
+        </div>`;
+    }
+    showViz(r.steps);
+    toast(r.passed ? 'Validator: PASS' : 'Validator: FAIL', r.passed);
+  } catch(e) { toast('Lỗi kết nối server', false); }
+}
+
+// ── Helpers ──
+async function api(path, body) {
+  const resp = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  return resp.json();
+}
+
+function copyText(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text.replace(/\s/g,'')).then(()=>toast('Đã sao chép!', true));
+}
+
+let toastTimer;
+function toast(msg, success=false) {
+  clearTimeout(toastTimer);
+  const el = document.querySelector('.toast-premium');
+  if (el) el.remove();
+  const t = document.createElement('div');
+  t.className = 'toast-premium ' + (success ? 'success' : 'error');
+  t.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px; height:18px;">
+      ${success ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>' : '<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>'}
+    </svg>
+    <span>${msg}</span>
+  `;
+  document.body.appendChild(t);
+  toastTimer = setTimeout(() => t.remove(), 3000);
+}
+
+// Init
+updateCounter('enc-key','enc-ctr');
+updateCounter('dec-key','dec-ctr');
+</script>
+</body>
+</html>
